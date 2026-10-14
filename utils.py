@@ -1,4 +1,5 @@
 from langchain_nvidia_ai_endpoints import ChatNVIDIA
+from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from binary_score_models import GradeAnswer,GradeDocuments,GradeHallucinations
@@ -10,7 +11,8 @@ import json
 class Nodeoutputs:
     def __init__(self, api_key, model, prompts_file):
         os.environ["NVIDIA_API_KEY"] = api_key
-        self.llm = ChatNVIDIA( api_key=api_key, model=model)
+        # self.llm = ChatNVIDIA( api_key=api_key, model=model)
+        self.llm = ChatOpenAI(model=model )
         self.prompts = self.load_prompts(prompts_file)
         self.setup_prompts()
 
@@ -68,5 +70,6 @@ class Nodeoutputs:
 # Access the API key from environment variables
 api_key = os.getenv('API_KEY')
 model = "nvidia/llama-3.3-nemotron-super-49b-v1.5"
+model = "ai/qwen3.8:latest"
 prompts_file = "prompt.json"
 automation = Nodeoutputs(api_key, model, prompts_file)

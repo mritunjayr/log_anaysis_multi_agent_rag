@@ -1,6 +1,6 @@
 import os
 from langchain_nvidia_ai_endpoints import NVIDIAEmbeddings
-
+from langchain_openai import OpenAIEmbeddings
 from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_classic.retrievers import EnsembleRetriever
@@ -21,7 +21,8 @@ class HybridRetriever:
         self.hybrid_retriever = self.create_hybrid_retriever()
 
     def initialize_nvidia_components(self):
-        embeddings =NVIDIAEmbeddings(model="nemotron-3-embed-1b", truncate="END")
+        # embeddings =NVIDIAEmbeddings(model="nemotron-3-embed-1b", truncate="END")
+        embeddings = OpenAIEmbeddings(model="qwen3-embedding:0.6B-F16")
         return  embeddings
 
     def load_and_split_documents(self):
