@@ -21,7 +21,7 @@ class HybridRetriever:
         self.hybrid_retriever = self.create_hybrid_retriever()
 
     def initialize_nvidia_components(self):
-        embeddings =NVIDIAEmbeddings(model="nvidia/llama-3.2-nv-embedqa-1b-v2", truncate="END")
+        embeddings =NVIDIAEmbeddings(model="nemotron-3-embed-1b", truncate="END")
         return  embeddings
 
     def load_and_split_documents(self):
