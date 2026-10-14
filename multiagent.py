@@ -1,8 +1,9 @@
 import os
 from langchain_nvidia_ai_endpoints import NVIDIAEmbeddings
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+
 from langchain_community.document_loaders import TextLoader
-from langchain.retrievers import EnsembleRetriever
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_classic.retrievers import EnsembleRetriever
 from langchain_community.retrievers import BM25Retriever
 from langchain_community.vectorstores.faiss import FAISS
 

@@ -1,60 +1,73 @@
+
+
+from langchain_nvidia_ai_endpoints import NVIDIARerank
+import os
+from multiagent import HybridRetriever
+import io
+from contextlib import redirect_stdout, redirect_stderr
 from utils import automation
+from dotenv import load_dotenv
 
-class Edge:
-    def decide_to_generate(state):
-        """
-        Determines whether to generate an answer, or re-generate a question.
+load_dotenv()
+api_key = os.getenv('API_KEY')
 
-        Returns:
-            str: Binary decision for next node to call
-        """
+class Nodes:
+    @staticmethod
+    def retrieve(state):    
+        print("---RETRIEVE---")
+        question = state["question"]
+        path = state["path"]
+        hybrid_retriever_instance = HybridRetriever(path, api_key)
+        hybrid_retriever = hybrid_retriever_instance.get_retriever()
+        with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            documents = hybrid_retriever.get_relevant_documents(question)
 
-        print("ASSESS GRADED DOCUMENTS")
-        state["question"]
-        filtered_documents = state["documents"]
-        transform_count = state.get("transform_count", 0)
+        return {"documents": documents, "question": question}
 
-        # If we've transformed too many times, force generation
-        if transform_count >= 2:
-            print("DECISION: MAX TRANSFORMS REACHED, FORCING GENERATION")
-            return "generate"
-
-        if not filtered_documents:
-            print(
-                "DECISION: ALL DOCUMENTS ARE NOT RELEVANT TO QUESTION, TRANSFORM QUERY"
-            )
-            return "transform_query"
-        print("---DECISION: GENERATE---")
-        return "generate"
-        
-    def grade_generation_vs_documents_and_question(state):
-        """
-        Determines whether the generation is grounded in the document and answers question.
-
-        Returns:
-            str: Decision for next node to call
-        """
-
+    @staticmethod
+    def rerank(state):
+        print("NVIDIA--RERANKER")
         question = state["question"]
         documents = state["documents"]
-        generation = state["generation"]
+        reranker =  NVIDIARerank(model="nvidia/llama-3.2-nv-rerankqa-1b-v2", api_key=api_key)
+        documents = reranker.compress_documents(query=question, documents=documents)
+        return {"documents": documents, "question": question}
 
-        print("GRADE GENERATED vs QUESTION")
-        try:
-            score_text = automation.answer_grader.invoke({"question": question, "generation": generation})
-            if "yes" in score_text.lower():
-                print("DECISION: GENERATION ADDRESSES QUESTION")
-                return "useful"
+    @staticmethod
+    def generate(state):    
+        print("GENERATE USING LLM")
+        question = state["question"]
+        documents = state["documents"]
+
+        generation = automation.rag_chain.invoke({"context": documents, "question": question})
+        return {"documents": documents, "question": question, "generation": generation}
+
+    @staticmethod
+    def grade_documents(state):    
+        print("CHECKING DOCUMENT RELEVANCE TO QUESTION")
+        question = state["question"]
+        ret_documents = state["documents"]
+
+        filtered_docs = []
+        for doc in ret_documents:
+            score = automation.retrieval_grader.invoke(
+                {"question": question, "document": doc.page_content}
+            )
+            grade = score.binary_score
+            if grade == "yes":
+                print("---GRADE: DOCUMENT RELEVANT---")
+                filtered_docs.append(doc)
             else:
-                # Check if we've transformed too many times
-                transform_count = state.get("transform_count", 0)
-                if transform_count >= 2:
-                    print("DECISION: MAX TRANSFORMS REACHED, ACCEPTING GENERATION")
-                    return "useful"
-                else:
-                    print("DECISION: GENERATION DOES NOT ADDRESS QUESTION")
-                    return "not useful"
-        except:
-            # If grading fails, assume generation is useful to avoid infinite loops
-            print("DECISION: GRADING FAILED, ACCEPTING GENERATION")
-            return "useful"
+                print("---GRADE: DOCUMENT NOT RELEVANT---")
+        return {"documents": filtered_docs, "question": question}
+
+    @staticmethod
+    def transform_query(state):
+        
+        print("REWRITE PROMPT")
+        question = state["question"]
+        documents = state["documents"]
+
+        better_question = automation.question_rewriter.invoke({"question": question})
+        print(f"actual query : {question} \n Transformed query:{better_question}")
+        return {"documents": documents, "question": better_question}
